@@ -522,8 +522,9 @@ html.fast .guide-track { transition-duration: 110ms; }
   color: var(--cream); font: 500 38px var(--body);
 }
 .search-input::placeholder { color: rgba(255, 247, 230, 0.4); }
-.search-status { position: absolute; top: 196px; left: 96px; font: 500 26px var(--body); color: var(--dim); }
-.search-rows { position: absolute; top: 230px; left: 0; width: 1920px; bottom: 0; overflow: hidden; }
+.search-filters { position: absolute; top: 188px; left: 96px; right: 96px; height: 56px; white-space: nowrap; overflow: hidden; }
+.search-status { position: absolute; top: 276px; left: 96px; font: 500 26px var(--body); color: var(--dim); }
+.search-rows { position: absolute; top: 310px; left: 0; width: 1920px; bottom: 0; overflow: hidden; }
 
 /* ---------- dev ---------- */
 

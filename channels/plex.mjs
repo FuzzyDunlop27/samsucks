@@ -112,11 +112,23 @@ export class Plex {
     }
   }
 
-  async search(query) {
-    const mc = await this.get('/hubs/search', { query, limit: 12, includeCollections: 1, includeExternalMedia: 0 });
+  // The video libraries (movie and show sections), for the admin filters.
+  async libraries() {
+    return ((await this.get('/library/sections')).Directory || [])
+      .filter(d => d.type === 'movie' || d.type === 'show')
+      .map(d => ({ key: String(d.key), title: d.title, type: d.type }));
+  }
+
+  // Plex ignores sectionId on /hubs/search, so a library filter is applied
+  // here, with a bigger limit so the one library still gets a full list.
+  async search(query, section) {
+    const mc = await this.get('/hubs/search', { query, limit: section ? 40 : 12, includeCollections: 1, includeExternalMedia: 0 });
     const out = [];
     for (const hub of mc.Hub || []) {
-      for (const m of hub.Metadata || []) if (PICKABLE[m.type]) out.push(describe(m));
+      for (const m of hub.Metadata || []) {
+        if (!PICKABLE[m.type] || (section && String(m.librarySectionID) !== section)) continue;
+        out.push(describe(m));
+      }
     }
     return out;
   }
@@ -144,6 +156,7 @@ export class Plex {
       this.get('/library/sections/' + s.key + '/all').then(mc => (mc.Metadata || []).map(m => {
         const d = describe(m);
         d.library = s.title;
+        d.section = String(s.key);
         d.rating = m.contentRating || '';
         d.kids = KIDS_RATINGS.has(d.rating) || KIDS_LIBRARY.test(s.title);
         const seasons = m.type === 'show' && m.childCount ? m.childCount + (m.childCount === 1 ? ' season' : ' seasons') : '';

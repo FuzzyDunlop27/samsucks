@@ -115,6 +115,7 @@ let current = null;   // working copy of the channel being edited
 let dirty = false;
 let mode = 'search';  // which "Add content" tab is open
 let kind = 'all';
+let library = '';     // section key to limit Search and Browse all to; '' = every library
 let kidsOnly = false;
 let shown = PAGE;
 const cache = {};     // 'all' / 'lists' -> promise of results
@@ -186,6 +187,7 @@ function renderEditor() {
       '<div class="block"><div class="block-head"><h2>Content</h2><span class="count" id="src-count"></span></div><div class="list" id="sources"></div></div>' +
       '<div class="block"><div class="block-head"><h2>Add content</h2></div>' +
         '<div class="tabs">' + MODES.map(m => '<button class="tab' + (m[0] === mode ? ' on' : '') + '" data-mode="' + m[0] + '">' + m[1] + '</button>').join('') + '</div>' +
+        '<div class="filters" id="libs"></div>' +
         '<div class="filters" id="filters">' +
           KINDS.map(k => '<button class="chip' + (k[0] === kind ? ' on' : '') + '" data-kind="' + k[0] + '">' + k[1] + '</button>').join('') +
           '<button class="chip' + (kidsOnly ? ' on' : '') + '" id="kids">Kids</button>' +
@@ -250,6 +252,8 @@ function setMode(m) {
   mode = m;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   $('#filters').classList.toggle('hidden', m !== 'all');
+  $('#libs').classList.toggle('hidden', m === 'lists');
+  renderLibraries();
   $('#q').placeholder = m === 'search' ? 'Search movies, shows, collections, playlists…' : 'Filter by title…';
   $('#q').value = '';
   refreshResults();
@@ -259,6 +263,15 @@ function setMode(m) {
 async function load(key, path) {
   if (!cache[key]) cache[key] = api(path).then(r => r.results).catch(e => { cache[key] = null; throw e; });
   return cache[key];
+}
+
+async function renderLibraries() {
+  let libs;
+  try { libs = await load('libraries', '/api/admin/plex/libraries'); } catch (e) { libs = []; }
+  const el = $('#libs');
+  if (!el) return;
+  el.innerHTML = libs.length < 2 ? '' : [{ key: '', title: 'All libraries' }].concat(libs).map(l =>
+    '<button class="chip' + (l.key === library ? ' on' : '') + '" data-library="' + esc(l.key) + '">' + esc(l.title) + '</button>').join('');
 }
 
 function matches(r, q) {
@@ -272,7 +285,7 @@ async function refreshResults() {
   $('#results').scrollTop = 0;
   if (m === 'search') {
     if (!q) return renderResults([], 'Search your library, or switch to Browse all to see everything.');
-    try { renderResults((await api('/api/admin/plex/search?q=' + encodeURIComponent(q))).results); }
+    try { renderResults((await api('/api/admin/plex/search?q=' + encodeURIComponent(q) + (library ? '&section=' + encodeURIComponent(library) : ''))).results); }
     catch (e) { renderResults([], 'Search failed: ' + e.message); }
     return;
   }
@@ -283,7 +296,7 @@ async function refreshResults() {
   catch (e) { return renderResults([], 'Couldn\'t load: ' + e.message); }
   if (mode !== m) return;
   const needle = q.toLowerCase();
-  list = list.filter(r => matches(r, needle) && (m !== 'all' || ((kind === 'all' || r.type === kind) && (!kidsOnly || r.kids))));
+  list = list.filter(r => matches(r, needle) && (m !== 'all' || ((kind === 'all' || r.type === kind) && (!library || r.section === library) && (!kidsOnly || r.kids))));
   if (m === 'all') $('#all-count').textContent = list.length.toLocaleString() + ' title' + (list.length === 1 ? '' : 's');
   renderResults(list, m === 'all' ? 'Nothing matches these filters.' : 'No collections or playlists on this server.');
 }
@@ -330,6 +343,11 @@ document.addEventListener('click', e => {
   if (chan) return select(chan.dataset.id);
   const t = e.target;
   if (t.dataset.mode) return setMode(t.dataset.mode);
+  if (t.dataset.library != null) {
+    library = t.dataset.library;
+    document.querySelectorAll('[data-library]').forEach(b => b.classList.toggle('on', b === t));
+    return refreshResults();
+  }
   if (t.dataset.kind) {
     kind = t.dataset.kind;
     document.querySelectorAll('[data-kind]').forEach(b => b.classList.toggle('on', b === t));

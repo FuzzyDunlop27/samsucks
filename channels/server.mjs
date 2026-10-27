@@ -255,7 +255,8 @@ async function route(req, res, url) {
     const i = Math.max(0, sched.airing(st, now));
     return send(res, 200, { now, total: (await content(ch)).length, programs: st.items.slice(i, i + 12).map(program) });
   }
-  if (path === '/api/admin/plex/search') return send(res, 200, { results: await plex.search(url.searchParams.get('q') || '') });
+  if (path === '/api/admin/plex/search') return send(res, 200, { results: await plex.search(url.searchParams.get('q') || '', url.searchParams.get('section') || '') });
+  if (path === '/api/admin/plex/libraries') return send(res, 200, { results: await plex.libraries() });
   if (path === '/api/admin/plex/browse') return send(res, 200, { results: await plex.browse() });
   if (path === '/api/admin/plex/all') return send(res, 200, { results: await plex.all() });
   if (path === '/api/admin/plex/image') {
