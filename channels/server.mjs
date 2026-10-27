@@ -1,4 +1,4 @@
-// SamSUCKS channel server: virtual channels built from your Plex library.
+// Plecks channel server: virtual channels built from your Plex library.
 // Runs next to Plex, stores channel setup and schedules as JSON, and answers
 // two questions for the TV app: "what's the guide?" and "what's on channel N
 // right now, and how far in?". Video never passes through here; the TV plays
@@ -257,6 +257,7 @@ async function route(req, res, url) {
   }
   if (path === '/api/admin/plex/search') return send(res, 200, { results: await plex.search(url.searchParams.get('q') || '') });
   if (path === '/api/admin/plex/browse') return send(res, 200, { results: await plex.browse() });
+  if (path === '/api/admin/plex/all') return send(res, 200, { results: await plex.all() });
   if (path === '/api/admin/plex/image') {
     const img = await plex.image(url.searchParams.get('path'), Number(url.searchParams.get('size')) || 96);
     res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'max-age=86400' });
@@ -277,5 +278,5 @@ createServer(async (req, res) => {
     if (!res.headersSent) send(res, e.status === 401 ? 502 : 500, { error: e.message });
   }
 }).listen(PORT, () => {
-  console.log('SamSUCKS channels on http://localhost:' + PORT + '  (Plex: ' + plex.url + ', token ' + (plex.token ? 'found' : 'missing') + ')');
+  console.log('Plecks channels on http://localhost:' + PORT + '  (Plex: ' + plex.url + ', token ' + (plex.token ? 'found' : 'missing') + ')');
 });

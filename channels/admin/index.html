@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SamSUCKS Channels</title>
+<title>Plecks Channels</title>
 <style>
   :root {
     --bg: #0B0D12; --raised: #181B23; --raised2: #222632; --line: rgba(255, 247, 230, 0.10);
@@ -57,7 +57,18 @@
   .item .s { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .badge { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--dim); background: var(--raised2); padding: 2px 7px; border-radius: 5px; }
   .item button { padding: 5px 10px; font-size: 13px; }
-  .results { max-height: 420px; overflow-y: auto; }
+  .results { max-height: 520px; overflow-y: auto; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .tab { background: transparent; border-radius: 8px 8px 0 0; color: var(--dim); padding: 8px 12px; border-bottom: 2px solid transparent; }
+  .tab:hover { background: var(--raised); }
+  .tab.on { color: var(--cream); border-bottom-color: var(--coral); font-weight: 600; }
+  .filters { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .filters.hidden { display: none; }
+  .filters .spacer { flex: 1; }
+  .filters .count { color: var(--dim); font-size: 13px; }
+  .chip { padding: 5px 12px; border-radius: 999px; font-size: 13px; background: var(--raised); border: 1px solid var(--line); }
+  .chip.on { background: var(--coral); border-color: var(--coral); color: #fff; font-weight: 600; }
+  #kids { margin-left: 8px; }
   .list .none { padding: 18px; color: var(--dim); text-align: center; }
 
   .when { width: 120px; flex-shrink: 0; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 13px; }
@@ -76,7 +87,7 @@
 </head>
 <body>
 <header>
-  <h1>SamSUCKS <b>Channels</b></h1>
+  <h1>Plecks <b>Channels</b></h1>
   <div id="status">Connecting…</div>
 </header>
 <main>
@@ -95,9 +106,18 @@ const ORDERS = [
   ['custom', 'As listed'],
 ];
 
+const MODES = [['search', 'Search'], ['all', 'Browse all'], ['lists', 'Collections &amp; playlists']];
+const KINDS = [['all', 'All'], ['movie', 'Movies'], ['show', 'TV shows']];
+const PAGE = 150;     // result rows rendered at a time; more load on scroll
+
 let channels = [];
 let current = null;   // working copy of the channel being edited
 let dirty = false;
+let mode = 'search';  // which "Add content" tab is open
+let kind = 'all';
+let kidsOnly = false;
+let shown = PAGE;
+const cache = {};     // 'all' / 'lists' -> promise of results
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -164,9 +184,15 @@ function renderEditor() {
     '</div>' +
     '<div class="cols">' +
       '<div class="block"><div class="block-head"><h2>Content</h2><span class="count" id="src-count"></span></div><div class="list" id="sources"></div></div>' +
-      '<div class="block"><div class="block-head"><h2>Add content</h2><span class="spacer"></span><button id="browse" class="ghost">Collections &amp; playlists</button></div>' +
-        '<input id="q" placeholder="Search movies, shows, collections, playlists…" autocomplete="off">' +
-        '<div class="list results" id="results" style="margin-top:10px"><div class="none">Search your library, or browse collections and playlists.</div></div></div>' +
+      '<div class="block"><div class="block-head"><h2>Add content</h2></div>' +
+        '<div class="tabs">' + MODES.map(m => '<button class="tab' + (m[0] === mode ? ' on' : '') + '" data-mode="' + m[0] + '">' + m[1] + '</button>').join('') + '</div>' +
+        '<div class="filters" id="filters">' +
+          KINDS.map(k => '<button class="chip' + (k[0] === kind ? ' on' : '') + '" data-kind="' + k[0] + '">' + k[1] + '</button>').join('') +
+          '<button class="chip' + (kidsOnly ? ' on' : '') + '" id="kids">Kids</button>' +
+          '<span class="spacer"></span><span class="count" id="all-count"></span>' +
+        '</div>' +
+        '<input id="q" autocomplete="off">' +
+        '<div class="list results" id="results" style="margin-top:10px"></div></div>' +
     '</div>' +
     '<div class="block"><div class="block-head"><h2>Coming up</h2><span class="count" id="prev-count"></span></div><div class="list" id="preview"><div class="none">Save to build the schedule.</div></div></div>' +
     '<div class="actions">' +
@@ -181,8 +207,12 @@ function renderEditor() {
   $('#f-logo').oninput = e => { c.logo = e.target.value; touch(); };
   $('#f-order').onchange = e => { c.order = e.target.value; touch(); };
   let timer = 0;
-  $('#q').oninput = e => { clearTimeout(timer); timer = setTimeout(() => search(e.target.value.trim()), 250); };
-  $('#browse').onclick = browse;
+  $('#q').oninput = () => { clearTimeout(timer); timer = setTimeout(refreshResults, mode === 'search' ? 250 : 80); };
+  $('#results').onscroll = e => {
+    const r = e.target;
+    if (r.scrollTop + r.clientHeight > r.scrollHeight - 300 && shown < (r._data || []).length) { shown += PAGE; renderResults(r._data); }
+  };
+  setMode(mode);
   $('#save').onclick = () => save();
   $('#reshuffle').onclick = () => save({ reshuffle: true });
   $('#delete').onclick = remove;
@@ -207,7 +237,7 @@ function renderSources() {
 
 function renderResults(results, emptyText) {
   const have = new Set((current.sources || []).map(s => s.type + ':' + s.key));
-  $('#results').innerHTML = results.map((r, i) =>
+  $('#results').innerHTML = results.slice(0, shown).map((r, i) =>
     '<div class="item">' + thumb(r.thumb) +
       '<div class="txt"><div class="t">' + esc(r.title) + '</div><div class="s">' + esc(r.subtitle) + '</div></div>' +
       '<span class="badge">' + esc(r.type) + '</span>' +
@@ -216,16 +246,46 @@ function renderResults(results, emptyText) {
   $('#results')._data = results;
 }
 
-async function search(q) {
-  if (!q) return renderResults([], 'Search your library, or browse collections and playlists.');
-  try { renderResults((await api('/api/admin/plex/search?q=' + encodeURIComponent(q))).results); }
-  catch (e) { renderResults([], 'Search failed: ' + e.message); }
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  $('#filters').classList.toggle('hidden', m !== 'all');
+  $('#q').placeholder = m === 'search' ? 'Search movies, shows, collections, playlists…' : 'Filter by title…';
+  $('#q').value = '';
+  refreshResults();
 }
 
-async function browse() {
-  $('#results').innerHTML = '<div class="none">Loading…</div>';
-  try { renderResults((await api('/api/admin/plex/browse')).results, 'No collections or playlists on this server.'); }
-  catch (e) { renderResults([], 'Couldn\'t load: ' + e.message); }
+// Loaded once per page visit; Plex libraries don't change minute to minute.
+async function load(key, path) {
+  if (!cache[key]) cache[key] = api(path).then(r => r.results).catch(e => { cache[key] = null; throw e; });
+  return cache[key];
+}
+
+function matches(r, q) {
+  return !q || r.title.toLowerCase().includes(q) || (r.subtitle || '').toLowerCase().includes(q);
+}
+
+async function refreshResults() {
+  const q = $('#q').value.trim();
+  const m = mode;
+  shown = PAGE;
+  $('#results').scrollTop = 0;
+  if (m === 'search') {
+    if (!q) return renderResults([], 'Search your library, or switch to Browse all to see everything.');
+    try { renderResults((await api('/api/admin/plex/search?q=' + encodeURIComponent(q))).results); }
+    catch (e) { renderResults([], 'Search failed: ' + e.message); }
+    return;
+  }
+  const key = m === 'all' ? 'all' : 'lists';
+  if (!cache[key]) $('#results').innerHTML = '<div class="none">Loading' + (m === 'all' ? ' your whole library' : '') + '…</div>';
+  let list;
+  try { list = await load(key, m === 'all' ? '/api/admin/plex/all' : '/api/admin/plex/browse'); }
+  catch (e) { return renderResults([], 'Couldn\'t load: ' + e.message); }
+  if (mode !== m) return;
+  const needle = q.toLowerCase();
+  list = list.filter(r => matches(r, needle) && (m !== 'all' || ((kind === 'all' || r.type === kind) && (!kidsOnly || r.kids))));
+  if (m === 'all') $('#all-count').textContent = list.length.toLocaleString() + ' title' + (list.length === 1 ? '' : 's');
+  renderResults(list, m === 'all' ? 'Nothing matches these filters.' : 'No collections or playlists on this server.');
 }
 
 async function loadPreview() {
@@ -269,11 +329,23 @@ document.addEventListener('click', e => {
   const chan = e.target.closest('.chan');
   if (chan) return select(chan.dataset.id);
   const t = e.target;
+  if (t.dataset.mode) return setMode(t.dataset.mode);
+  if (t.dataset.kind) {
+    kind = t.dataset.kind;
+    document.querySelectorAll('[data-kind]').forEach(b => b.classList.toggle('on', b === t));
+    return refreshResults();
+  }
+  if (t.id === 'kids') {
+    kidsOnly = !kidsOnly;
+    t.classList.toggle('on', kidsOnly);
+    return refreshResults();
+  }
   if (t.dataset.add != null) {
     const r = $('#results')._data[Number(t.dataset.add)];
     current.sources = (current.sources || []).concat([{ type: r.type, key: r.key, title: r.title, subtitle: r.subtitle }]);
     if (current.name === 'New channel' && current.sources.length === 1) { current.name = r.title; $('#f-name').value = r.title; }
-    renderSources(); renderResults($('#results')._data); touch();
+    t.disabled = true; t.textContent = 'Added';
+    renderSources(); touch();
   } else if (t.dataset.del != null) {
     current.sources.splice(Number(t.dataset.del), 1);
     renderSources(); touch();

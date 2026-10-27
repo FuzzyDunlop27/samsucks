@@ -33,7 +33,7 @@ export function exitApp() {
 
 export function deviceInfo() {
   let model = 'Browser';
-  let name = 'SamSUCKS';
+  let name = 'Plecks';
   try { model = webapis.productinfo.getRealModel() || webapis.productinfo.getModel(); } catch (e) {}
   try { name = 'Samsung ' + (webapis.productinfo.getModel() || 'TV'); } catch (e) {}
   // PMS has a built-in "Tizen" profile (the official app) that rejects our

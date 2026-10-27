@@ -103,9 +103,9 @@ html.playing .ambience { display: none; }
   display: flex; align-items: center;
 }
 .brand { display: flex; align-items: center; flex-shrink: 0; }
-.brand-mark { width: 81px; height: 84px; display: block; }
+.brand-mark { width: 84px; height: 84px; display: block; border-radius: 18px; }
 .brand-text { margin-left: 16px; }
-.brand-wordmark { width: 206px; height: 44px; display: block; }
+.brand-wordmark { width: 115px; height: 44px; display: block; }
 .brand-by {
   margin-top: 6px; padding-left: 2px;
   font: 500 17px/1 var(--body); letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.86);
@@ -368,6 +368,32 @@ html.fast .row-track, html.fast .rows-track, html.fast .grid-track, html.fast .r
 .tracks-opt.on { color: var(--cream); }
 .tracks-opt.on::before { content: '✓  '; color: var(--coral); }
 .tracks-opt.focus { background: var(--cream); color: var(--bg); }
+
+.surf {
+  position: absolute; left: 0; top: 0; width: 900px; height: 1080px; padding: 80px 64px 0 72px;
+  background: linear-gradient(90deg, rgba(11, 13, 18, 0.96) 80%, rgba(11, 13, 18, 0.8));
+}
+.surf-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 26px; }
+.surf-heading { font: 600 24px var(--body); color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+.surf-clock { font: 600 30px var(--display); color: var(--dim); }
+.surf-row {
+  display: flex; align-items: center; height: 120px; margin-bottom: 8px; padding: 0 26px;
+  border-radius: 16px; background: rgba(255, 247, 230, 0.05);
+}
+.surf-row.focus { background: var(--cream); color: var(--bg); }
+.surf-num { width: 92px; flex-shrink: 0; font: 700 50px/1 var(--display); color: var(--coral); }
+.surf-body { flex: 1; min-width: 0; }
+.surf-name { font: 600 18px var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.surf-title { margin-top: 4px; font: 600 28px/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.surf-sub { margin-top: 2px; font: 400 19px var(--body); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.surf-row.focus .surf-name, .surf-row.focus .surf-sub { color: rgba(11, 13, 18, 0.62); }
+.surf-bar { margin-top: 10px; height: 4px; border-radius: 2px; background: rgba(255, 247, 230, 0.18); overflow: hidden; }
+.surf-row.focus .surf-bar { background: rgba(11, 13, 18, 0.15); }
+.surf-bar i { display: block; height: 100%; background: var(--coral); transform-origin: 0 0; }
+.surf-more { display: flex; justify-content: space-between; height: 30px; font: 500 19px var(--body); color: var(--dim); }
+.surf-next { margin-top: 18px; font: 500 22px var(--body); color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.surf-hint { position: absolute; left: 72px; bottom: 44px; font: 500 20px var(--body); color: var(--dim); }
+.surf-empty { margin-top: 40px; font: 500 28px var(--body); color: var(--dim); }
 
 .upnext {
   position: absolute; right: 96px; bottom: 120px; width: 660px; padding: 34px 40px;

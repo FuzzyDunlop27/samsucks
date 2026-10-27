@@ -13,6 +13,7 @@ import * as router from '../router.js';
 import { log, warn, error } from '../util/log.js';
 import { request } from '../plex/client.js';
 import { parseSubtitles, CueTrack } from '../player/subtitles.js';
+import * as chans from '../channels/client.js';
 
 // What a 2022 Samsung (Tizen 6.5) decodes natively. No DTS on 2018+ models.
 const DIRECT = {
@@ -25,6 +26,23 @@ const TEXT_SUBS = { srt: 1, subrip: 1, ass: 1, ssa: 1, mov_text: 1, vtt: 1, webv
 const OSD_HIDE_MS = 4000;
 const SEEK_COMMIT_MS = 900;
 const TIMELINE_MS = 10000;
+const SURF_ROWS = 6;          // channels visible in the surf list at once
+const SURF_STALE_MS = 60000;  // refetch what's on after this long
+
+function clockTime(ms) {
+  const d = new Date(ms);
+  const mm = d.getMinutes();
+  return (d.getHours() % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (d.getHours() >= 12 ? ' PM' : ' AM');
+}
+
+function programTitle(p) {
+  return p.type === 'episode' ? p.show : p.title;
+}
+
+function programSub(p) {
+  if (p.type === 'episode') return 'S' + (p.season || 0) + ' E' + (p.episode || 0) + '  ' + p.title;
+  return p.year ? String(p.year) : '';
+}
 
 function streamsOf(part, type) {
   return (part && part.Stream || []).filter(s => s.streamType === type);
@@ -52,6 +70,9 @@ function cleanSubtitle(text) {
     .replace(/\\N/g, '\n');
 }
 
+// What's on every channel, kept across channel changes so ▼ opens instantly.
+let surfCache = { at: 0, lines: [] };
+
 // `channel` (from nav.tune) means we're watching a virtual channel: no watch
 // progress is saved, the program ends into whatever the channel airs next,
 // and CH ▲/▼ changes channel.
@@ -78,9 +99,10 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
   const tInfo = h('span', 'osd-info', times);
   const tLeft = h('span', 'osd-left', times);
   const hintEl = h('div', 'osd-hint', osdBottom);
-  hintEl.innerHTML = (channel ? 'CH ▲▼ Change channel   ·   ' : '') + '▼ Audio &amp; subtitles';
+  hintEl.innerHTML = channel ? 'CH ▲▼ Change channel   ·   ▼ All channels' : '▼ Audio &amp; subtitles';
 
   const panel = h('div', 'tracks hidden', el);
+  const surf = h('div', 'surf hidden', el);
   const upnext = h('div', 'upnext hidden', el);
   const errorEl = h('div', 'player-error hidden', el);
 
@@ -455,6 +477,118 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
     return true;
   }
 
+  // --- Channel surfing (▼ while watching a channel) ----------------------
+
+  let surfIndex = 0;
+  let surfFirst = 0;
+
+  function airing(line, now) {
+    return line.programs.find(p => p.start <= now && now < p.end) || null;
+  }
+
+  function openSurf() {
+    surf.classList.remove('hidden');
+    hideOsd();
+    const fresh = Date.now() - surfCache.at < SURF_STALE_MS;
+    if (surfCache.lines.length) {
+      pointAtCurrent();
+      renderSurf();
+    } else {
+      surf.innerHTML = '';
+      h('div', 'surf-empty', surf).textContent = 'Loading channels…';
+    }
+    if (fresh) return;
+    const now = Date.now();
+    chans.guide(now, now + 3 * 3600e3).then(res => {
+      const first = !surfCache.lines.length;
+      surfCache = { at: Date.now(), lines: res.channels || [] };
+      if (!alive || surf.classList.contains('hidden')) return;
+      if (first) pointAtCurrent();
+      renderSurf();
+    }).catch(e => {
+      warn('channel list failed', e.message);
+      if (!surfCache.lines.length && alive) setText(surf.firstChild, 'Couldn\'t load channels: ' + e.message);
+    });
+  }
+
+  function pointAtCurrent() {
+    surfIndex = Math.max(0, surfCache.lines.findIndex(l => l.id === channel.id));
+    surfFirst = Math.max(0, Math.min(surfIndex - 1, surfCache.lines.length - SURF_ROWS));
+  }
+
+  function closeSurf() {
+    surf.classList.add('hidden');
+  }
+
+  function renderSurf() {
+    const lines = surfCache.lines;
+    const now = Date.now();
+    if (surfIndex < surfFirst) surfFirst = surfIndex;
+    if (surfIndex >= surfFirst + SURF_ROWS) surfFirst = surfIndex - SURF_ROWS + 1;
+    surf.innerHTML = '';
+    const head = h('div', 'surf-head', surf);
+    h('span', 'surf-heading', head).textContent = 'Channels';
+    h('span', 'surf-clock', head).textContent = clockTime(now);
+    if (!lines.length) {
+      h('div', 'surf-empty', surf).textContent = 'No channels yet.';
+      return;
+    }
+    const list = h('div', 'surf-list', surf);
+    lines.slice(surfFirst, surfFirst + SURF_ROWS).forEach((line, k) => {
+      const row = h('div', 'surf-row', list);
+      toggleClass(row, 'focus', surfFirst + k === surfIndex);
+      h('div', 'surf-num', row).textContent = line.number;
+      const body = h('div', 'surf-body', row);
+      h('div', 'surf-name', body).textContent = line.name + (line.id === channel.id ? '   ·   Watching' : '');
+      const p = airing(line, now);
+      h('div', 'surf-title', body).textContent = p ? programTitle(p) : 'Nothing scheduled';
+      if (!p) return;
+      const left = Math.max(1, Math.round((p.end - now) / 60000));
+      h('div', 'surf-sub', body).textContent = [programSub(p), left + ' min left'].filter(Boolean).join('   ·   ');
+      const bar = h('div', 'surf-bar', body);
+      setTransform(h('i', '', bar), 'scaleX(' + Math.max(0, Math.min(1, (now - p.start) / (p.end - p.start))).toFixed(3) + ')');
+    });
+    const more = h('div', 'surf-more', surf);
+    if (surfFirst > 0) h('span', '', more).textContent = '▲ ' + surfFirst + ' more';
+    if (surfFirst + SURF_ROWS < lines.length) h('span', '', more).textContent = '▼ ' + (lines.length - surfFirst - SURF_ROWS) + ' more';
+    const f = lines[surfIndex];
+    const cur = f && airing(f, now);
+    const next = f && f.programs.find(p => p.start >= (cur ? cur.end : now));
+    h('div', 'surf-next', surf).textContent = next ? 'Next on ' + f.name + ':   ' + clockTime(next.start) + '   ' + programTitle(next) : '';
+    h('div', 'surf-hint', surf).textContent = 'OK Watch   ·   ► Audio & subtitles   ·   Back Close';
+  }
+
+  function surfKey(action) {
+    const lines = surfCache.lines;
+    switch (action) {
+      case 'up': case 'down':
+        if (lines.length) {
+          surfIndex = Math.max(0, Math.min(lines.length - 1, surfIndex + (action === 'up' ? -1 : 1)));
+          renderSurf();
+        }
+        return true;
+      case 'enter': {
+        const line = lines[surfIndex];
+        closeSurf();
+        if (!line || line.id === channel.id) return true;
+        toggleClass(spinner, 'on', true);
+        channel.switchTo(line).catch(e => { warn('channel change failed', e.message); toggleClass(spinner, 'on', false); });
+        return true;
+      }
+      case 'right':
+        closeSurf();
+        if (part) openPanel();
+        return true;
+      case 'pageup': case 'pagedown':
+        closeSurf();
+        return false;
+      case 'back': case 'left': case 'stop':
+        closeSurf();
+        return true;
+    }
+    return true;
+  }
+
   // --- Ending -----------------------------------------------------------
 
   async function nextEpisode() {
@@ -548,6 +682,7 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
         return true;
       }
       if (!panel.classList.contains('hidden')) return panelKey(action);
+      if (!surf.classList.contains('hidden') && surfKey(action)) return true;
       switch (action) {
         case 'enter':
           if (seekTarget != null) commitSeek();
@@ -560,7 +695,10 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
         case 'left': case 'rw': seekBy(-1); return true;
         case 'right': case 'ff': seekBy(1); return true;
         case 'up': case 'info': showOsd(); return true;
-        case 'down': if (part) openPanel(); return true;
+        case 'down':
+          if (channel) openSurf();
+          else if (part) openPanel();
+          return true;
         case 'pageup': case 'pagedown':
           if (channel) {
             toggleClass(spinner, 'on', true);

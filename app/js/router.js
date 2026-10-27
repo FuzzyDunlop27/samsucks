@@ -68,3 +68,7 @@ export function back() {
 export function top() {
   return stack[stack.length - 1];
 }
+
+export function depth() {
+  return stack.length;
+}

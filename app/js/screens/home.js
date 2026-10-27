@@ -47,7 +47,7 @@ export function HomeScreen() {
 
   const top = h('header', 'topbar', el);
   const brand = h('div', 'brand', top);
-  h('img', 'brand-mark', brand).src = 'img/mascot.png';
+  h('img', 'brand-mark', brand).src = 'img/mark.png';
   const brandText = h('div', 'brand-text', brand);
   h('img', 'brand-wordmark', brandText).src = 'img/wordmark.png';
   h('div', 'brand-by', brandText).textContent = 'by rfaile313';

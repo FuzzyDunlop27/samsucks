@@ -52,7 +52,7 @@ APP_ID=$(sed -n 's/.*tizen:application id="\([^"]*\)".*/\1/p' "$ROOT/app/config.
 
 rm -f "$ROOT"/build/*.wgt
 "$TIZEN" package -t wgt -s "${TIZEN_SIGN_PROFILE:-samsucks}" -o "$ROOT/build" -- "$OUT" >/dev/null
-# The package is named after the app ("SamSUCKS - Better Plex.wgt"); the installer chokes on spaces.
+# The package is named after the app ("Plecks.wgt"); the installer chokes on spaces.
 WGT="$ROOT/build/samsucks.wgt"
 mv "$(ls "$ROOT"/build/*.wgt | head -1)" "$WGT"
 

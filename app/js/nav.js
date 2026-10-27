@@ -54,6 +54,7 @@ export async function tune(channel, { replace = false } = {}) {
       const next = await chans.neighbor(on.channel.id, dir);
       if (next) await tune(next, { replace: true });
     },
+    switchTo: other => tune(other, { replace: true }),
   });
   const screen = PlayerScreen(item, { offset: on.offset, channel: ch });
   if (replace) router.replace(screen);

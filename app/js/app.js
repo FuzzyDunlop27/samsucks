@@ -68,6 +68,13 @@ function start() {
   }
 }
 
+// Tizen keeps the app running when you press Home or switch source, then
+// resumes it as it was. Drop back to Home as soon as we're sent away, so a
+// relaunch opens on the main screen and playback stops instead of hanging around.
+function onVisibility() {
+  if (document.hidden && session.token && session.server && router.depth() > 1) goHome();
+}
+
 export function boot() {
   if (DEV) window.__ss = { router, session, nav };
   log('boot', VERSION, navigator.userAgent);
@@ -79,6 +86,7 @@ export function boot() {
   router.init(document.getElementById('app'));
   initHud(() => (router.top() && router.top().name) || '');
   window.addEventListener('samsucks:restart', start);
+  document.addEventListener('visibilitychange', onVisibility);
   // Dev builds only; release builds don't ship js/dev/.
   if (DEV && DEV_HOST) import('./dev/remote.js').then(m => m.startDevRemote());
   start();

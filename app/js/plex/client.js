@@ -4,7 +4,7 @@ import { deviceInfo } from '../platform/tizen.js';
 import * as store from '../util/store.js';
 import { uuid } from '../util/format.js';
 
-export const PRODUCT = 'SamSUCKS';
+export const PRODUCT = 'Plecks';
 
 let clientId = store.get('clientId');
 if (!clientId) {

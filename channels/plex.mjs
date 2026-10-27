@@ -7,7 +7,7 @@ import { homedir } from 'node:os';
 
 const HEADERS = {
   Accept: 'application/json',
-  'X-Plex-Product': 'SamSUCKS Channels',
+  'X-Plex-Product': 'Plecks Channels',
   'X-Plex-Client-Identifier': 'samsucks-channels',
 };
 
@@ -59,6 +59,12 @@ function slim(m) {
 }
 
 const PICKABLE = { movie: 1, show: 1, season: 1, episode: 1, collection: 1, playlist: 1 };
+const KIDS_RATINGS = new Set(['G', 'PG', 'TV-Y', 'TV-Y7', 'TV-Y7-FV', 'TV-G']);
+const KIDS_LIBRARY = /kid|family|child|cartoon/i;
+
+function sortTitle(t) {
+  return String(t || '').replace(/^(the|a|an)\s+/i, '');
+}
 
 function describe(m) {
   let subtitle = '';
@@ -126,6 +132,25 @@ export class Plex {
       })).catch(() => [])));
     const playlists = ((await this.get('/playlists', { playlistType: 'video' })).Metadata || []).map(describe);
     return lists.flat().concat(playlists);
+  }
+
+  // Every movie and show in every video library, A to Z, for browsing when
+  // you don't know what to search for. `kids` marks family-rated titles and
+  // anything in a library named like "Kids" or "Family".
+  async all() {
+    const sections = ((await this.get('/library/sections')).Directory || [])
+      .filter(d => d.type === 'movie' || d.type === 'show');
+    const lists = await Promise.all(sections.map(s =>
+      this.get('/library/sections/' + s.key + '/all').then(mc => (mc.Metadata || []).map(m => {
+        const d = describe(m);
+        d.library = s.title;
+        d.rating = m.contentRating || '';
+        d.kids = KIDS_RATINGS.has(d.rating) || KIDS_LIBRARY.test(s.title);
+        const seasons = m.type === 'show' && m.childCount ? m.childCount + (m.childCount === 1 ? ' season' : ' seasons') : '';
+        d.subtitle = [m.year, seasons, d.rating, s.title].filter(Boolean).join(' · ');
+        return d;
+      })).catch(() => [])));
+    return lists.flat().sort((a, b) => sortTitle(a.title).localeCompare(sortTitle(b.title)));
   }
 
   async expand(m) {
