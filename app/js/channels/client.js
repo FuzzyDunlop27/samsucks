@@ -33,8 +33,11 @@ export async function channels() {
   return channelList;
 }
 
-export function guide(from, to) {
-  return get('/api/guide', { from, to });
+export async function guide(from, to) {
+  const res = await get('/api/guide', { from, to });
+  // Keep CH ▲/▼ in step with channels added or removed since the last look.
+  channelList = (res.channels || []).map(c => ({ id: c.id, number: c.number, name: c.name, logo: c.logo }));
+  return res;
 }
 
 export function nowOn(id) {
