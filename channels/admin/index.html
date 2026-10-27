@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SamSUCKS Channels</title>
+<style>
+  :root {
+    --bg: #0B0D12; --raised: #181B23; --raised2: #222632; --line: rgba(255, 247, 230, 0.10);
+    --coral: #FF4C42; --cream: #FFF7E6; --dim: rgba(255, 247, 230, 0.62);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--cream); font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; border-radius: 8px; padding: 8px 14px; background: var(--raised2); }
+  button:hover { background: #2c3140; }
+  button.primary { background: var(--coral); color: #fff; font-weight: 600; }
+  button.primary:hover { background: #ff6259; }
+  button.ghost { background: transparent; color: var(--dim); }
+  button.danger { background: transparent; color: #ff8a83; }
+  input, select { width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--raised2); outline: none; }
+  input:focus, select:focus { border-color: var(--coral); }
+  label { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+
+  header { display: flex; align-items: center; gap: 16px; padding: 18px 28px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header h1 b { color: var(--coral); }
+  #status { margin-left: auto; color: var(--dim); font-size: 13px; }
+  #status.bad { color: #ff8a83; }
+
+  main { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 63px); }
+  aside { border-right: 1px solid var(--line); padding: 16px; }
+  .chan { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+  .chan:hover { background: var(--raised); }
+  .chan.on { background: var(--raised2); }
+  .chan-num { width: 44px; font-weight: 700; font-size: 18px; color: var(--coral); text-align: right; }
+  .chan-name { font-weight: 600; }
+  .chan-sub { font-size: 12px; color: var(--dim); }
+  #new { width: 100%; margin-top: 12px; }
+
+  section#editor { padding: 24px 32px; max-width: 1100px; }
+  .empty { color: var(--dim); padding: 60px 0; text-align: center; }
+  .fields { display: grid; grid-template-columns: 110px 1fr 1fr 200px; gap: 16px; }
+  .block { margin-top: 28px; }
+  .block-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .block-head h2 { font-size: 15px; font-weight: 700; }
+  .block-head .count { color: var(--dim); font-size: 13px; }
+  .block-head .spacer { flex: 1; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--line); }
+  .item:first-child { border-top: 0; }
+  .item img, .item .ph { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--raised2); flex-shrink: 0; }
+  .item .txt { flex: 1; min-width: 0; }
+  .item .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .s { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--dim); background: var(--raised2); padding: 2px 7px; border-radius: 5px; }
+  .item button { padding: 5px 10px; font-size: 13px; }
+  .results { max-height: 420px; overflow-y: auto; }
+  .list .none { padding: 18px; color: var(--dim); text-align: center; }
+
+  .when { width: 120px; flex-shrink: 0; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .item.live .when { color: var(--coral); font-weight: 700; }
+
+  .actions { display: flex; gap: 10px; margin-top: 28px; align-items: center; }
+  .actions .spacer { flex: 1; }
+  #saved { color: var(--dim); font-size: 13px; }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    aside { border-right: 0; border-bottom: 1px solid var(--line); }
+    .fields, .cols { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>SamSUCKS <b>Channels</b></h1>
+  <div id="status">Connecting…</div>
+</header>
+<main>
+  <aside>
+    <div id="chans"></div>
+    <button id="new" class="primary">+ New channel</button>
+  </aside>
+  <section id="editor"><div class="empty">Pick a channel, or create one.</div></section>
+</main>
+
+<script>
+const ORDERS = [
+  ['shuffle', 'Shuffle'],
+  ['episode', 'Season / episode order'],
+  ['release', 'Release date'],
+  ['custom', 'As listed'],
+];
+
+let channels = [];
+let current = null;   // working copy of the channel being edited
+let dirty = false;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const thumb = p => p ? '<img loading="lazy" src="/api/admin/plex/image?size=80&path=' + encodeURIComponent(p) + '">' : '<div class="ph"></div>';
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.status);
+  return body;
+}
+
+function time(ms) {
+  return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+async function loadStatus() {
+  const el = $('#status');
+  try {
+    const s = await api('/api/admin/status');
+    if (!s.server) { el.textContent = 'Can\'t reach Plex at ' + s.plexUrl; el.className = 'bad'; return; }
+    el.textContent = s.signedIn ? 'Connected to ' + s.server.name + ' (Plex ' + s.server.version.split('-')[0] + ')' : s.server.name + ': no Plex token found';
+    el.className = s.signedIn ? '' : 'bad';
+  } catch (e) {
+    el.textContent = 'Channel server error: ' + e.message;
+    el.className = 'bad';
+  }
+}
+
+async function loadChannels(selectId) {
+  channels = (await api('/api/admin/channels')).channels;
+  renderList();
+  const pick = channels.find(c => c.id === (selectId || (current && current.id)));
+  if (pick) select(pick.id, true);
+}
+
+function renderList() {
+  $('#chans').innerHTML = channels.map(c =>
+    '<div class="chan' + (current && current.id === c.id ? ' on' : '') + '" data-id="' + c.id + '">' +
+      '<div class="chan-num">' + c.number + '</div>' +
+      '<div><div class="chan-name">' + esc(c.name) + '</div>' +
+      '<div class="chan-sub">' + (c.sources || []).length + ' source' + ((c.sources || []).length === 1 ? '' : 's') + ' · ' + (ORDERS.find(o => o[0] === c.order) || ORDERS[0])[1] + '</div></div>' +
+    '</div>').join('') || '<div class="chan-sub" style="padding:12px">No channels yet.</div>';
+}
+
+function select(id, force) {
+  if (!force && dirty && !confirm('Discard unsaved changes?')) return;
+  const c = channels.find(x => x.id === id);
+  current = JSON.parse(JSON.stringify(c));
+  dirty = false;
+  renderList();
+  renderEditor();
+  loadPreview();
+}
+
+function renderEditor() {
+  const c = current;
+  $('#editor').innerHTML =
+    '<div class="fields">' +
+      '<div><label>Number</label><input id="f-number" type="number" min="1" value="' + c.number + '"></div>' +
+      '<div><label>Name</label><input id="f-name" value="' + esc(c.name) + '"></div>' +
+      '<div><label>Logo image URL (optional)</label><input id="f-logo" placeholder="https://…" value="' + esc(c.logo || '') + '"></div>' +
+      '<div><label>Order</label><select id="f-order">' + ORDERS.map(o => '<option value="' + o[0] + '"' + (o[0] === c.order ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>' +
+    '</div>' +
+    '<div class="cols">' +
+      '<div class="block"><div class="block-head"><h2>Content</h2><span class="count" id="src-count"></span></div><div class="list" id="sources"></div></div>' +
+      '<div class="block"><div class="block-head"><h2>Add content</h2><span class="spacer"></span><button id="browse" class="ghost">Collections &amp; playlists</button></div>' +
+        '<input id="q" placeholder="Search movies, shows, collections, playlists…" autocomplete="off">' +
+        '<div class="list results" id="results" style="margin-top:10px"><div class="none">Search your library, or browse collections and playlists.</div></div></div>' +
+    '</div>' +
+    '<div class="block"><div class="block-head"><h2>Coming up</h2><span class="count" id="prev-count"></span></div><div class="list" id="preview"><div class="none">Save to build the schedule.</div></div></div>' +
+    '<div class="actions">' +
+      '<button id="save" class="primary">Save</button>' +
+      '<button id="reshuffle" title="New random order from now on">Reshuffle</button>' +
+      '<span id="saved"></span><span class="spacer"></span>' +
+      '<button id="delete" class="danger">Delete channel</button>' +
+    '</div>';
+  renderSources();
+  $('#f-number').oninput = e => { c.number = Number(e.target.value); touch(); };
+  $('#f-name').oninput = e => { c.name = e.target.value; touch(); };
+  $('#f-logo').oninput = e => { c.logo = e.target.value; touch(); };
+  $('#f-order').onchange = e => { c.order = e.target.value; touch(); };
+  let timer = 0;
+  $('#q').oninput = e => { clearTimeout(timer); timer = setTimeout(() => search(e.target.value.trim()), 250); };
+  $('#browse').onclick = browse;
+  $('#save').onclick = () => save();
+  $('#reshuffle').onclick = () => save({ reshuffle: true });
+  $('#delete').onclick = remove;
+}
+
+function touch() {
+  dirty = true;
+  $('#saved').textContent = 'Unsaved changes';
+}
+
+function renderSources() {
+  const list = current.sources || [];
+  $('#src-count').textContent = list.length ? list.length + ' source' + (list.length === 1 ? '' : 's') : '';
+  $('#sources').innerHTML = list.map((s, i) =>
+    '<div class="item">' +
+      '<span class="badge">' + esc(s.type) + '</span>' +
+      '<div class="txt"><div class="t">' + esc(s.title) + '</div><div class="s">' + esc(s.subtitle) + '</div></div>' +
+      (current.order === 'custom' ? '<button data-up="' + i + '" title="Move up">↑</button>' : '') +
+      '<button data-del="' + i + '" class="danger">Remove</button>' +
+    '</div>').join('') || '<div class="none">Nothing yet. Add a show, a collection or a playlist.</div>';
+}
+
+function renderResults(results, emptyText) {
+  const have = new Set((current.sources || []).map(s => s.type + ':' + s.key));
+  $('#results').innerHTML = results.map((r, i) =>
+    '<div class="item">' + thumb(r.thumb) +
+      '<div class="txt"><div class="t">' + esc(r.title) + '</div><div class="s">' + esc(r.subtitle) + '</div></div>' +
+      '<span class="badge">' + esc(r.type) + '</span>' +
+      (have.has(r.type + ':' + r.key) ? '<button disabled>Added</button>' : '<button data-add="' + i + '">Add</button>') +
+    '</div>').join('') || '<div class="none">' + (emptyText || 'No matches.') + '</div>';
+  $('#results')._data = results;
+}
+
+async function search(q) {
+  if (!q) return renderResults([], 'Search your library, or browse collections and playlists.');
+  try { renderResults((await api('/api/admin/plex/search?q=' + encodeURIComponent(q))).results); }
+  catch (e) { renderResults([], 'Search failed: ' + e.message); }
+}
+
+async function browse() {
+  $('#results').innerHTML = '<div class="none">Loading…</div>';
+  try { renderResults((await api('/api/admin/plex/browse')).results, 'No collections or playlists on this server.'); }
+  catch (e) { renderResults([], 'Couldn\'t load: ' + e.message); }
+}
+
+async function loadPreview() {
+  if (!current || !(current.sources || []).length) return;
+  try {
+    const p = await api('/api/admin/channels/' + current.id + '/preview');
+    $('#prev-count').textContent = p.total + ' items in rotation';
+    $('#preview').innerHTML = p.programs.map(x => {
+      const live = x.start <= p.now && p.now < x.end;
+      const title = x.type === 'episode' ? x.show + ' · S' + x.season + 'E' + x.episode : x.title + (x.year ? ' (' + x.year + ')' : '');
+      return '<div class="item' + (live ? ' live' : '') + '"><div class="when">' + (live ? 'On now' : time(x.start)) + '</div>' +
+        thumb(x.thumb) + '<div class="txt"><div class="t">' + esc(title) + '</div><div class="s">' + esc(x.type === 'episode' ? x.title : '') + ' ' + Math.round((x.end - x.start) / 60000) + ' min</div></div></div>';
+    }).join('') || '<div class="none">Nothing playable in these sources.</div>';
+  } catch (e) {
+    $('#preview').innerHTML = '<div class="none">Couldn\'t build the schedule: ' + esc(e.message) + '</div>';
+  }
+}
+
+async function save(extra) {
+  try {
+    const body = Object.assign({ name: current.name, number: current.number, logo: current.logo, order: current.order, sources: current.sources }, extra || {});
+    await api('/api/admin/channels/' + current.id, { method: 'PUT', body: JSON.stringify(body) });
+    dirty = false;
+    $('#saved').textContent = 'Saved. TVs pick it up on their next guide refresh.';
+    await loadChannels(current.id);
+  } catch (e) {
+    $('#saved').textContent = 'Save failed: ' + e.message;
+  }
+}
+
+async function remove() {
+  if (!confirm('Delete channel ' + current.number + ' (' + current.name + ')?')) return;
+  await api('/api/admin/channels/' + current.id, { method: 'DELETE' });
+  current = null;
+  dirty = false;
+  $('#editor').innerHTML = '<div class="empty">Pick a channel, or create one.</div>';
+  await loadChannels();
+}
+
+document.addEventListener('click', e => {
+  const chan = e.target.closest('.chan');
+  if (chan) return select(chan.dataset.id);
+  const t = e.target;
+  if (t.dataset.add != null) {
+    const r = $('#results')._data[Number(t.dataset.add)];
+    current.sources = (current.sources || []).concat([{ type: r.type, key: r.key, title: r.title, subtitle: r.subtitle }]);
+    if (current.name === 'New channel' && current.sources.length === 1) { current.name = r.title; $('#f-name').value = r.title; }
+    renderSources(); renderResults($('#results')._data); touch();
+  } else if (t.dataset.del != null) {
+    current.sources.splice(Number(t.dataset.del), 1);
+    renderSources(); touch();
+  } else if (t.dataset.up != null) {
+    const i = Number(t.dataset.up);
+    if (i > 0) { const s = current.sources; [s[i - 1], s[i]] = [s[i], s[i - 1]]; renderSources(); touch(); }
+  }
+});
+
+$('#new').onclick = async () => {
+  if (dirty && !confirm('Discard unsaved changes?')) return;
+  const ch = await api('/api/admin/channels', { method: 'POST', body: '{}' });
+  dirty = false;
+  await loadChannels(ch.id);
+  $('#q') && $('#q').focus();
+};
+
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+loadStatus();
+loadChannels();
+</script>
+</body>
+</html>

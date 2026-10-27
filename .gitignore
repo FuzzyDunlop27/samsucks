@@ -36,6 +36,9 @@ dist/
 node_modules/
 npm-debug.log*
 
+# Channel server state (channel setup and schedules)
+channels/data/
+
 # OS
 .DS_Store
 
