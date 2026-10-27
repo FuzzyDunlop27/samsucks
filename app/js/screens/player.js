@@ -52,7 +52,10 @@ function cleanSubtitle(text) {
     .replace(/\\N/g, '\n');
 }
 
-export function PlayerScreen(initial, { offset = null } = {}) {
+// `channel` (from nav.tune) means we're watching a virtual channel: no watch
+// progress is saved, the program ends into whatever the channel airs next,
+// and CH ▲/▼ changes channel.
+export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
   const el = h('div', 'screen player');
   const stage = h('div', 'player-stage', el);
   const subs = h('div', 'subs', el);
@@ -62,6 +65,7 @@ export function PlayerScreen(initial, { offset = null } = {}) {
 
   const osd = h('div', 'osd', el);
   const osdTop = h('div', 'osd-top', osd);
+  if (channel) h('div', 'osd-chan', osdTop).textContent = channel.number + '  ' + channel.name;
   const osdTitle = h('div', 'osd-title', osdTop);
   const osdSub = h('div', 'osd-sub', osdTop);
   const osdBottom = h('div', 'osd-bottom', osd);
@@ -74,7 +78,7 @@ export function PlayerScreen(initial, { offset = null } = {}) {
   const tInfo = h('span', 'osd-info', times);
   const tLeft = h('span', 'osd-left', times);
   const hintEl = h('div', 'osd-hint', osdBottom);
-  hintEl.innerHTML = '▼ Audio &amp; subtitles';
+  hintEl.innerHTML = (channel ? 'CH ▲▼ Change channel   ·   ' : '') + '▼ Audio &amp; subtitles';
 
   const panel = h('div', 'tracks hidden', el);
   const upnext = h('div', 'upnext hidden', el);
@@ -168,7 +172,8 @@ export function PlayerScreen(initial, { offset = null } = {}) {
   // --- Timeline ---------------------------------------------------------
 
   function report(state) {
-    if (!item.ratingKey) return;
+    // Channel surfing shouldn't touch Continue Watching or watched state.
+    if (!item.ratingKey || channel) return;
     if (DEV && window.__ss && window.__ss.muteTimeline) return;
     session.server.timeline({
       ratingKey: item.ratingKey,
@@ -295,6 +300,8 @@ export function PlayerScreen(initial, { offset = null } = {}) {
       renderTitles();
       mode = decideMode();
       if (offset == null) offset = item.viewOffset || 0;
+      // The channel kept airing while we fetched metadata.
+      if (channel) offset = Math.min(offset + Date.now() - channel.tunedAt, Math.max(0, duration - 5000));
       position = offset;
       renderProgress(position);
       showOsd();
@@ -466,6 +473,11 @@ export function PlayerScreen(initial, { offset = null } = {}) {
     report('stopped');
     clearInterval(timelineTimer);
     player.close();
+    if (channel) {
+      toggleClass(spinner, 'on', true);
+      channel.retune().catch(e => { warn('retune failed', e.message); exit(); });
+      return;
+    }
     if (item.type !== 'episode') { exit(); return; }
     try { nextItem = await nextEpisode(); } catch (e) { nextItem = null; }
     if (!alive) return;
@@ -549,6 +561,12 @@ export function PlayerScreen(initial, { offset = null } = {}) {
         case 'right': case 'ff': seekBy(1); return true;
         case 'up': case 'info': showOsd(); return true;
         case 'down': if (part) openPanel(); return true;
+        case 'pageup': case 'pagedown':
+          if (channel) {
+            toggleClass(spinner, 'on', true);
+            channel.surf(action === 'pageup' ? 1 : -1).catch(e => { warn('channel change failed', e.message); toggleClass(spinner, 'on', false); });
+          }
+          return true;
         case 'stop': exit(); return true;
         case 'back':
           if (seekTarget != null) { seekTarget = null; toggleClass(el, 'seeking', false); renderProgress(position); showOsd(); return true; }

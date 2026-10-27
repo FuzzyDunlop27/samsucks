@@ -418,6 +418,70 @@ html.fast .row-track, html.fast .rows-track, html.fast .grid-track, html.fast .r
 .setting.focus .setting-value { color: rgba(11, 13, 18, 0.65); }
 .settings-foot { position: absolute; left: 160px; bottom: 64px; font: 500 20px var(--body); color: var(--dim); }
 
+/* ---------- guide ---------- */
+
+.guide-art {
+  left: 576px; top: 0; width: 1344px; height: 756px; opacity: 0.55;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%), linear-gradient(to top, transparent 20%, #000 60%);
+  -webkit-mask-composite: source-in;
+}
+.guide-head { position: absolute; top: 52px; left: 96px; right: 96px; display: flex; align-items: baseline; }
+.guide-title { font: 700 76px/1 var(--display); }
+.guide-clock { margin-left: auto; font: 600 34px var(--display); color: var(--dim); letter-spacing: 0.02em; }
+.guide-info { position: absolute; left: 96px; top: 158px; width: 1100px; }
+.guide-info-title {
+  font: 700 72px/1 var(--display);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.guide-info-meta { margin-top: 14px; font: 500 26px var(--body); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.guide-info-summary {
+  margin-top: 14px; font: 400 24px/1.45 var(--body); color: rgba(255, 247, 230, 0.8);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-height: 70px;
+}
+.guide-times { position: absolute; left: 400px; top: 420px; width: 1424px; height: 40px; overflow: hidden; }
+.guide-time {
+  position: absolute; top: 0; left: 0; padding-left: 12px; border-left: 2px solid var(--faint);
+  font: 600 22px/40px var(--body); color: var(--dim); white-space: nowrap;
+}
+.guide-rows { position: absolute; left: 0; top: 470px; width: 1920px; height: 560px; overflow: hidden; }
+.guide-track { position: absolute; top: 0; left: 0; width: 1920px; will-change: transform; transition: transform 240ms var(--ease); }
+.guide-row { position: absolute; top: 0; left: 0; width: 1920px; height: 104px; }
+.guide-chan {
+  position: absolute; left: 96px; top: 0; width: 288px; height: 104px; padding: 0 22px;
+  display: flex; align-items: center; border-radius: 14px; background: rgba(255, 247, 230, 0.05);
+}
+.guide-row.current .guide-chan { background: rgba(255, 247, 230, 0.12); }
+.guide-num { width: 72px; flex-shrink: 0; font: 700 44px/1 var(--display); color: var(--coral); }
+.guide-logo { width: 72px; height: 54px; flex-shrink: 0; margin-right: 14px; object-fit: contain; }
+.guide-name { font: 600 24px/1.15 var(--body); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.guide-progs { position: absolute; left: 400px; top: 0; width: 1424px; height: 104px; overflow: hidden; }
+.guide-prog {
+  position: absolute; top: 0; height: 104px; padding: 18px 20px; border-radius: 14px; overflow: hidden;
+  background: rgba(255, 247, 230, 0.06);
+}
+.guide-prog.live { background: rgba(255, 247, 230, 0.10); }
+.guide-prog.cont { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+.guide-prog.focus { background: var(--cream); color: var(--bg); }
+.guide-prog-title { font: 600 25px/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.guide-prog-sub { margin-top: 6px; font: 400 20px var(--body); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.guide-prog.focus .guide-prog-sub { color: rgba(11, 13, 18, 0.65); }
+.guide-empty { left: 0; width: 1418px; color: var(--dim); font: 500 22px/68px var(--body); }
+.guide-now {
+  position: absolute; left: 0; top: 452px; width: 3px; height: 578px; margin-left: -1px;
+  background: var(--coral); border-radius: 2px; box-shadow: 0 0 12px rgba(255, 76, 66, 0.6);
+  pointer-events: none; will-change: transform;
+}
+.guide-message {
+  position: absolute; left: 96px; top: 520px; width: 1500px;
+  font: 500 30px/1.5 var(--body); color: var(--dim);
+}
+html.fast .guide-track { transition-duration: 110ms; }
+
+.osd-chan {
+  display: inline-block; margin-bottom: 16px; padding: 6px 16px; border-radius: 10px;
+  background: var(--coral); color: #fff; font: 700 24px/1.2 var(--body); letter-spacing: 0.02em;
+}
+
 /* ---------- search ---------- */
 
 .search-bar {

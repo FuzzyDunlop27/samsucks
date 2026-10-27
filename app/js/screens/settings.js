@@ -7,6 +7,7 @@ import { setHud, hudEnabled } from '../ui/hud.js';
 import * as router from '../router.js';
 import { ServerPicker } from './login.js';
 import { error } from '../util/log.js';
+import { baseUrl as channelServer } from '../channels/client.js';
 import { useAmbience, setLegacyGradients, legacyGradients } from '../ui/backdrop.js';
 
 export function SettingsScreen() {
@@ -25,6 +26,8 @@ export function SettingsScreen() {
     items = [
       { label: 'Server', value: session.server ? session.server.name : '—', run: switchServer },
       { label: 'Signed in as', value: session.user ? session.user.title : '—', run: doSignOut, action: 'Sign out' },
+      // Channels are set up in a browser at this address (channels/server.mjs).
+      { label: 'Channel server', value: channelServer() || '—', run: () => {} },
       { label: 'Performance overlay', value: hudEnabled() ? 'On' : 'Off', run: () => { setHud(!hudEnabled()); build(); } },
       // For before/after recordings: brings back the full-screen gradients that took ~2s per repaint.
       { label: 'Demo: original slow renderer', value: legacyGradients() ? 'On' : 'Off', run: () => { setLegacyGradients(!legacyGradients()); build(); } },

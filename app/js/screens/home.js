@@ -8,7 +8,7 @@ import { metaLine } from '../util/format.js';
 import { isFast } from '../input.js';
 import * as store from '../util/store.js';
 import * as icons from '../ui/icons.js';
-import { openItem, playItem, openLibrary, openSearch, openSettings } from '../nav.js';
+import { openItem, playItem, openLibrary, openSearch, openSettings, openGuide } from '../nav.js';
 import { error, log } from '../util/log.js';
 
 const ROWS_TOP = 600;
@@ -82,7 +82,7 @@ export function HomeScreen() {
 
   function buildNav(sections) {
     navTrack.innerHTML = '';
-    navItems = [{ label: 'Home', id: 'home' }]
+    navItems = [{ label: 'Home', id: 'home' }, { label: 'Guide', id: 'guide' }]
       .concat(sections.map(s => ({ label: s.title, id: 'section', section: s })))
       .concat([{ label: 'Search', id: 'search', icon: icons.search }, { label: 'Settings', id: 'settings', icon: icons.gear }]);
     navIndex = Math.min(navIndex, navItems.length - 1);
@@ -223,7 +223,8 @@ export function HomeScreen() {
   load();
 
   function activateNav(n) {
-    if (n.id === 'section') openLibrary(n.section);
+    if (n.id === 'guide') openGuide();
+    else if (n.id === 'section') openLibrary(n.section);
     else if (n.id === 'search') openSearch();
     else if (n.id === 'settings') openSettings();
   }

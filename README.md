@@ -117,6 +117,28 @@ grids, search with the TV keyboard, movie and show pages with seasons and episod
 resume and mark watched, audio and subtitle picker (including external `.srt` files),
 up-next autoplay, and watch progress synced back to Plex.
 
+## Virtual channels (this fork)
+
+A **Guide** tab with TV-style channels built from your own library, like Channels DVR's
+virtual channels. Pick a channel and it plays the file straight from Plex, starting
+wherever the channel is "at": no live TV tuner, no transcoding.
+
+Channels live in a small server that runs next to Plex. Set them up once in a browser,
+and every TV running the app sees the same guide.
+
+```sh
+node channels/server.mjs        # then open http://<plex machine>:32500
+```
+
+- Add shows, movies, collections (smart collections too) or playlists to a channel, and
+  choose shuffle, season/episode, release date, or as-listed order.
+- Schedules are planned three days ahead and saved, so editing a channel only changes
+  what hasn't started yet.
+- On the same machine as Plex it finds the server's token by itself; otherwise set
+  `PLEX_URL` and `PLEX_TOKEN`. `PORT` (default 32500) and `DATA_DIR` are optional.
+- The app looks for the channel server on the Plex server's address, port 32500.
+- While watching a channel, CH ▲/▼ changes channel, and nothing is marked watched.
+
 ## Why it's fast
 
 Samsung TVs only run web apps, but there's nothing slow about the web engine
@@ -164,7 +186,8 @@ With `DEV_SKIP_LOGIN=1` and `PLEX_SERVER_URL` in `.env`, dev builds skip sign-in
 use a server that allows unauthenticated local-network access.
 
 The UI also runs in desktop Chrome: `./scripts/deploy.sh --build-only`, then serve
-`build/app/` with any static server. It uses a `<video>` element instead of AVPlay there.
+`build/app/` with any static server (or just `node tools/serve.mjs`, which serves `app/`
+directly). It uses a `<video>` element instead of AVPlay there.
 </details>
 
 <details>
