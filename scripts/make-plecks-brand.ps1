@@ -77,15 +77,12 @@ function Save($bmp, $rel) {
   Write-Output "$rel $($bmp.Width)x$($bmp.Height)"
 }
 
-# Icons (tile edge-to-edge, transparent corners).
-foreach ($s in 117, 128, 256, 512, 1024) {
-  $c = New-Canvas $s $s
-  Draw-Mark $c[1] 0 0 $s
-  Save $c[0] "assets/icons/app-icon-$s.png"
-  if ($s -eq 117) { Save $c[0] 'app/icon.png'; Save $c[0] 'assets/tizen/icon-dev-117x117.png' }
-  if ($s -eq 512) { Save $c[0] 'app/img/mascot-512.png' }
-  $c[1].Dispose(); $c[0].Dispose()
-}
+# Login art (tile edge-to-edge, transparent corners). The app icons, which add
+# the "Plecks" name under the mark, come from scripts/make-plecks-icon.py.
+$c = New-Canvas 512 512
+Draw-Mark $c[1] 0 0 512
+Save $c[0] 'app/img/mascot-512.png'
+$c[1].Dispose(); $c[0].Dispose()
 
 # Header mark (shown at 84x84 in the top bar, 2x for sharpness).
 $c = New-Canvas 168 168
