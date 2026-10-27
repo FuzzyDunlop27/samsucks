@@ -5,6 +5,9 @@
   </picture>
 </p>
 
+> **This fork is Plecks.** To install it on the TV and run the channel server
+> step by step, see **[DEPLOY.md](DEPLOY.md)**.
+
 <p align="center">
   <b>A Plex client for Samsung TVs that doesn't suck.</b><br>
   Smooth scrolling, hardware playback, zero dependencies.
