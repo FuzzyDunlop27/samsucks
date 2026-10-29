@@ -11,6 +11,7 @@ import { baseUrl as channelServer } from '../channels/client.js';
 import { useAmbience, setLegacyGradients, legacyGradients } from '../ui/backdrop.js';
 import * as profile from '../profile.js';
 import * as store from '../util/store.js';
+import * as screensaver from '../ui/screensaver.js';
 
 export function SettingsScreen() {
   const el = h('div', 'screen settings');
@@ -35,6 +36,7 @@ export function SettingsScreen() {
       { label: 'Server', value: session.server ? session.server.name : '—', run: switchServer },
       { label: 'Signed in as', value: session.user ? session.user.title : '—', run: doSignOut, action: 'Sign out' },
       // Channels are set up in a browser at this address (channels/server.mjs).
+      { label: 'Screensaver', value: screensaver.delay() ? 'After ' + screensaver.delay() + ' min' : 'Off', run: cycleSaver },
       { label: 'Channel server', value: channelServer() || '—', run: () => {} },
       { label: 'Performance overlay', value: hudEnabled() ? 'On' : 'Off', run: () => { setHud(!hudEnabled()); build(); } },
       // For before/after recordings: brings back the full-screen gradients that took ~2s per repaint.
@@ -65,6 +67,12 @@ export function SettingsScreen() {
     } catch (e) {
       error('server list failed', e);
     }
+  }
+
+  function cycleSaver() {
+    const d = screensaver.DELAYS;
+    screensaver.setDelay(d[(d.indexOf(screensaver.delay()) + 1) % d.length]);
+    build();
   }
 
   function switchProfile() {

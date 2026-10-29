@@ -548,3 +548,17 @@ html.fast .guide-track { transition-duration: 110ms; }
 .profile-name { margin-top: 28px; font: 600 40px var(--body); color: var(--dim); }
 .profile-tile.focus .profile-face { border-color: var(--cream); }
 .profile-tile.focus .profile-name { color: var(--cream); }
+
+/* ---------- screensaver ---------- */
+
+.saver { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 90; background: #000; }
+.saver-img {
+  position: absolute; top: 0; left: 0; width: 1920px; height: 1080px;
+  object-fit: cover; opacity: 0;
+  transition: opacity 1500ms ease; will-change: opacity;
+}
+.saver-img.on { opacity: 1; }
+.saver-fade { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; background: linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0%, transparent 30%); }
+.saver-corner { position: absolute; left: 96px; bottom: 80px; color: var(--cream); text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
+.saver-clock { font: 700 120px/1 var(--display); }
+.saver-title { margin-top: 12px; font: 500 36px var(--body); color: var(--dim); }

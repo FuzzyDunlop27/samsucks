@@ -8,6 +8,7 @@ import { LoginScreen } from './screens/login.js';
 import { ProfileScreen } from './screens/profiles.js';
 import * as profile from './profile.js';
 import { initHud } from './ui/hud.js';
+import * as screensaver from './ui/screensaver.js';
 import { log, warn } from './util/log.js';
 import * as nav from './nav.js';
 import * as store from './util/store.js';
@@ -80,7 +81,7 @@ function onVisibility() {
 }
 
 export function boot() {
-  if (DEV) window.__ss = { router, session, nav };
+  if (DEV) window.__ss = { router, session, nav, screensaver };
   log('boot', VERSION, navigator.userAgent);
   registerKeys();
   if (!isTizen) {
@@ -89,6 +90,7 @@ export function boot() {
   }
   router.init(document.getElementById('app'));
   initHud(() => (router.top() && router.top().name) || '');
+  screensaver.initScreensaver();
   window.addEventListener('samsucks:restart', start);
   document.addEventListener('visibilitychange', onVisibility);
   // Dev builds only; release builds don't ship js/dev/.

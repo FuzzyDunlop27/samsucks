@@ -6,6 +6,7 @@ import { DEV } from '../config.js';
 import { h, setText, setTransform, toggleClass } from '../util/dom.js';
 import { createPlayer } from '../platform/player.js';
 import { setScreenSaver, supports4K } from '../platform/tizen.js';
+import { syncSystemSaver } from '../ui/screensaver.js';
 import { session } from '../session.js';
 import { clock, episodeLabel, uuid } from '../util/format.js';
 import * as icons from '../ui/icons.js';
@@ -668,7 +669,7 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
     player.destroy();
     if (mode === 'hls') session.server.stopTranscode(playSession);
     document.documentElement.classList.remove('playing');
-    setScreenSaver(true);
+    syncSystemSaver();
     document.removeEventListener('visibilitychange', onVisibility);
   }
 
