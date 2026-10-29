@@ -1,7 +1,6 @@
 // Search across the server. Focusing the input brings up Samsung's on-screen
-// keyboard; results update as you type. A row of library pills under the bar
-// narrows the search to one section.
-import { h, setText, setTransform, toggleClass } from '../util/dom.js';
+// keyboard; results update as you type.
+import { h, setText, setTransform } from '../util/dom.js';
 import { Row } from '../ui/row.js';
 import { session } from '../session.js';
 import { openItem, playItem } from '../nav.js';
@@ -12,8 +11,6 @@ import * as profile from '../profile.js';
 
 const IME_DONE = 65376;
 const IME_CANCEL = 65385;
-const INPUT = -1;
-const FILTERS = -2;
 
 export function SearchScreen() {
   const el = h('div', 'screen search');
@@ -25,15 +22,12 @@ export function SearchScreen() {
   input.type = 'text';
   input.placeholder = 'Search movies and shows';
   input.setAttribute('autocomplete', 'off');
-  const filtersEl = h('div', 'search-filters', el);
   const status = h('div', 'search-status', el);
   const clip = h('div', 'search-rows', el);
   const track = h('div', 'rows-track', clip);
 
   let rows = [];
-  let rowIndex = INPUT; // >= 0 = result row
-  let filters = [{ title: 'All' }];
-  let filterIndex = 0;
+  let rowIndex = -1; // -1 = input
   let timer = 0;
   let query = '';
   let generation = 0;
@@ -44,8 +38,7 @@ export function SearchScreen() {
     if (q.length < 2) { setRows([]); setText(status, ''); return; }
     setText(status, 'Searching…');
     try {
-      const filter = filters[filterIndex];
-      let hubs = await session.server.search(q, filter.key);
+      let hubs = await session.server.search(q);
       if (profile.isKids()) {
         const keys = profile.kidsKeys(await session.server.sections());
         hubs = hubs.map(hb => Object.assign({}, hb, { Metadata: hb.Metadata.filter(m => profile.kidSafe(m, keys)) }))
@@ -53,7 +46,7 @@ export function SearchScreen() {
       }
       if (gen !== generation) return;
       setRows(hubs);
-      setText(status, hubs.length ? '' : 'Nothing found for “' + q + '”' + (filter.key ? ' in ' + filter.title : ''));
+      setText(status, hubs.length ? '' : 'Nothing found for “' + q + '”');
     } catch (e) {
       error('search failed', e);
       setText(status, 'Search failed');
@@ -78,45 +71,18 @@ export function SearchScreen() {
     render();
   }
 
-  function renderFilters() {
-    filtersEl.innerHTML = '';
-    filters.forEach(f => { f.el = h('div', 'pill', filtersEl); f.el.textContent = f.title; });
-  }
-
   function render() {
     rows.forEach((r, i) => r.setActive(i === rowIndex));
-    filters.forEach((f, i) => {
-      toggleClass(f.el, 'focus', rowIndex === FILTERS && i === filterIndex);
-      toggleClass(f.el, 'current', i === filterIndex);
-    });
-    el.classList.toggle('in-input', rowIndex === INPUT);
+    el.classList.toggle('in-input', rowIndex < 0);
     const y = rowIndex > 0 ? rows[rowIndex].y : 0;
     setTransform(track, 'translateY(' + (-y) + 'px)');
   }
 
-  function hasFilters() { return filters.length > 1; }
-
   function focusInput() {
-    rowIndex = INPUT;
+    rowIndex = -1;
     render();
     input.focus();
   }
-
-  function focusFilters() {
-    input.blur();
-    rowIndex = FILTERS;
-    render();
-  }
-
-  renderFilters();
-  session.server.sections().then(sections => {
-    // Kids only get pills for their own libraries.
-    const keys = profile.isKids() ? profile.kidsKeys(sections) : null;
-    const shown = keys ? sections.filter(s => keys.indexOf(String(s.key)) >= 0) : sections;
-    filters = [{ title: 'All' }].concat(shown.map(s => ({ title: s.title, key: s.key })));
-    renderFilters();
-    render();
-  }).catch(e => error('search sections failed', e));
 
   input.addEventListener('input', () => {
     clearTimeout(timer);
@@ -137,26 +103,11 @@ export function SearchScreen() {
     name: 'search',
     onShow() {
       ambience.restore();
-      if (rowIndex === INPUT) setTimeout(focusInput, 50);
+      if (rowIndex < 0) setTimeout(focusInput, 50);
     },
     onHide() { input.blur(); },
     onKey(action) {
-      if (rowIndex === FILTERS) {
-        if (action === 'left' || action === 'right') {
-          const next = filterIndex + (action === 'right' ? 1 : -1);
-          if (next >= 0 && next < filters.length) {
-            filterIndex = next;
-            render();
-            run(input.value.trim());
-          }
-          return true;
-        }
-        if (action === 'up' || action === 'back') { focusInput(); return true; }
-        if (action === 'down' && rows.length) { rowIndex = 0; render(); return true; }
-        return true;
-      }
-      if (rowIndex === INPUT) {
-        if (action === 'down' && hasFilters()) { focusFilters(); return true; }
+      if (rowIndex < 0) {
         if (action === 'down' && rows.length) { input.blur(); rowIndex = 0; render(); return true; }
         if (action === 'enter') { input.focus(); return true; }
         if (action === 'back') { input.blur(); return false; }
@@ -166,9 +117,7 @@ export function SearchScreen() {
       switch (action) {
         case 'left': row.move(-1); return true;
         case 'right': row.move(1); return true;
-        case 'up':
-          if (rowIndex > 0) { rowIndex--; render(); } else if (hasFilters()) focusFilters(); else focusInput();
-          return true;
+        case 'up': if (rowIndex === 0) focusInput(); else { rowIndex--; render(); } return true;
         case 'down': if (rowIndex < rows.length - 1) { rowIndex++; render(); } return true;
         case 'enter': row.select(); return true;
         case 'play': case 'playpause': if (row.current()) playItem(row.current()); return true;

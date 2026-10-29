@@ -79,15 +79,9 @@ export class Server {
     return mc.Metadata || [];
   }
 
-  // Plex ignores sectionId on /hubs/search, so a library filter is applied here.
-  async search(q, sectionId) {
+  async search(q) {
     const mc = await this.get('/hubs/search', { query: q, limit: 30, includeCollections: 0 });
-    let hubs = (mc.Hub || []).filter(h => h.size > 0 && SUPPORTED_HUB_TYPES[h.type] && h.Metadata);
-    if (sectionId) {
-      hubs = hubs.map(h => Object.assign({}, h, { Metadata: h.Metadata.filter(m => String(m.librarySectionID) === String(sectionId)) }))
-        .filter(h => h.Metadata.length);
-    }
-    return hubs;
+    return (mc.Hub || []).filter(h => h.size > 0 && SUPPORTED_HUB_TYPES[h.type] && h.Metadata);
   }
 
   timeline(params) {
