@@ -1,6 +1,7 @@
 // Screensaver: after a while with no remote input, cross-fade through random
 // backdrops from the server's libraries (filtered for the kids profile). Any
-// key wakes it, and that key does nothing else. Never runs during playback.
+// key wakes it, and that key does nothing else. Runs over a paused video, but
+// never while one is playing.
 //
 // While ours is enabled the TV's own screen saver is switched off, otherwise
 // the system one would kick in first.
@@ -111,7 +112,8 @@ function showNext() {
 }
 
 function canRun() {
-  return session.server && !document.hidden && !document.documentElement.classList.contains('playing');
+  const root = document.documentElement.classList;
+  return session.server && !document.hidden && (!root.contains('playing') || root.contains('video-paused'));
 }
 
 export async function show() {

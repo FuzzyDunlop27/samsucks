@@ -274,7 +274,7 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
     paused = false;
     started = true;
     position = atMs;
-    toggleClass(el, 'paused', false);
+    setPausedState(false);
     toggleClass(spinner, 'on', false);
     log('playing after ' + (Date.now() - t0) + 'ms (' + mode + ')');
     report('playing');
@@ -379,8 +379,17 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
       paused = true;
       showOsd(true);
     }
-    toggleClass(el, 'paused', paused);
+    setPausedState(paused);
     report(paused ? 'paused' : 'playing');
+  }
+
+  // A paused frame can burn in: let a screensaver (ours, or the TV's when ours
+  // is off) take over while paused, and keep both away while playing.
+  function setPausedState(on) {
+    toggleClass(el, 'paused', on);
+    toggleClass(document.documentElement, 'video-paused', on);
+    if (on) syncSystemSaver();
+    else setScreenSaver(false);
   }
 
   function seekBy(dir) {
@@ -668,7 +677,7 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
     clearInterval(cueTimer);
     player.destroy();
     if (mode === 'hls') session.server.stopTranscode(playSession);
-    document.documentElement.classList.remove('playing');
+    document.documentElement.classList.remove('playing', 'video-paused');
     syncSystemSaver();
     document.removeEventListener('visibilitychange', onVisibility);
   }
