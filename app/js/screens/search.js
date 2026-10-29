@@ -8,6 +8,7 @@ import { openItem, playItem } from '../nav.js';
 import { error } from '../util/log.js';
 import * as icons from '../ui/icons.js';
 import { useAmbience } from '../ui/backdrop.js';
+import * as profile from '../profile.js';
 
 const IME_DONE = 65376;
 const IME_CANCEL = 65385;
@@ -44,7 +45,12 @@ export function SearchScreen() {
     setText(status, 'Searching…');
     try {
       const filter = filters[filterIndex];
-      const hubs = await session.server.search(q, filter.key);
+      let hubs = await session.server.search(q, filter.key);
+      if (profile.isKids()) {
+        const keys = profile.kidsKeys(await session.server.sections());
+        hubs = hubs.map(hb => Object.assign({}, hb, { Metadata: hb.Metadata.filter(m => profile.kidSafe(m, keys)) }))
+          .filter(hb => hb.Metadata.length);
+      }
       if (gen !== generation) return;
       setRows(hubs);
       setText(status, hubs.length ? '' : 'Nothing found for “' + q + '”' + (filter.key ? ' in ' + filter.title : ''));
@@ -104,7 +110,10 @@ export function SearchScreen() {
 
   renderFilters();
   session.server.sections().then(sections => {
-    filters = [{ title: 'All' }].concat(sections.map(s => ({ title: s.title, key: s.key })));
+    // Kids only get pills for their own libraries.
+    const keys = profile.isKids() ? profile.kidsKeys(sections) : null;
+    const shown = keys ? sections.filter(s => keys.indexOf(String(s.key)) >= 0) : sections;
+    filters = [{ title: 'All' }].concat(shown.map(s => ({ title: s.title, key: s.key })));
     renderFilters();
     render();
   }).catch(e => error('search sections failed', e));

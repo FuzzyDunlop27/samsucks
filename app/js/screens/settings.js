@@ -9,6 +9,8 @@ import { ServerPicker } from './login.js';
 import { error } from '../util/log.js';
 import { baseUrl as channelServer } from '../channels/client.js';
 import { useAmbience, setLegacyGradients, legacyGradients } from '../ui/backdrop.js';
+import * as profile from '../profile.js';
+import * as store from '../util/store.js';
 
 export function SettingsScreen() {
   const el = h('div', 'screen settings');
@@ -23,7 +25,13 @@ export function SettingsScreen() {
 
   function build() {
     list.innerHTML = '';
+    const who = profile.PROFILES.find(p => p.id === profile.current());
     items = [
+      { label: 'Profile', value: who ? who.label : '—', run: switchProfile, action: 'Switch' },
+    ];
+    // The kids profile can switch back, but not change anything else.
+    if (!profile.isKids()) items = items.concat([
+      { label: 'Kids libraries', value: '', run: () => router.push(KidsLibraries()), action: 'Choose' },
       { label: 'Server', value: session.server ? session.server.name : '—', run: switchServer },
       { label: 'Signed in as', value: session.user ? session.user.title : '—', run: doSignOut, action: 'Sign out' },
       // Channels are set up in a browser at this address (channels/server.mjs).
@@ -31,11 +39,11 @@ export function SettingsScreen() {
       { label: 'Performance overlay', value: hudEnabled() ? 'On' : 'Off', run: () => { setHud(!hudEnabled()); build(); } },
       // For before/after recordings: brings back the full-screen gradients that took ~2s per repaint.
       { label: 'Demo: original slow renderer', value: legacyGradients() ? 'On' : 'Off', run: () => { setLegacyGradients(!legacyGradients()); build(); } },
-    ];
+    ]);
     items.forEach(it => {
       it.el = h('div', 'setting', list);
       h('span', 'setting-label', it.el).textContent = it.label;
-      h('span', 'setting-value', it.el).textContent = it.value + (it.action ? '  ·  ' + it.action : '');
+      h('span', 'setting-value', it.el).textContent = [it.value, it.action].filter(Boolean).join('  ·  ');
     });
     render();
   }
@@ -59,6 +67,11 @@ export function SettingsScreen() {
     }
   }
 
+  function switchProfile() {
+    profile.forget();
+    restart();
+  }
+
   function doSignOut() {
     signOut();
     restart();
@@ -79,6 +92,57 @@ export function SettingsScreen() {
       if (action === 'up') { index = Math.max(0, index - 1); render(); return true; }
       if (action === 'down') { index = Math.min(items.length - 1, index + 1); render(); return true; }
       if (action === 'enter') { items[index].run(); return true; }
+      return false;
+    },
+  };
+}
+
+// Which libraries the kids profile shows as-is. Everything else it sees only
+// as a "Family …" version holding kid/family titles.
+function KidsLibraries() {
+  const el = h('div', 'screen settings');
+  const ambience = useAmbience();
+  h('h1', 'settings-title', el).textContent = 'Kids libraries';
+  const list = h('div', 'settings-list', el);
+  h('div', 'settings-foot', el).textContent = 'OK turns a library on or off for the Kids profile.';
+
+  let index = 0;
+  let rows = [];
+
+  function build(sections) {
+    const keys = profile.kidsKeys(sections);
+    list.innerHTML = '';
+    rows = sections.map(s => {
+      const on = keys.indexOf(String(s.key)) >= 0;
+      const row = { key: String(s.key), on, el: h('div', 'setting', list) };
+      h('span', 'setting-label', row.el).textContent = s.title;
+      h('span', 'setting-value', row.el).textContent = on ? 'Kids library' : 'Family titles only';
+      return row;
+    });
+    render();
+  }
+
+  function render() {
+    rows.forEach((r, i) => toggleClass(r.el, 'focus', i === index));
+  }
+
+  let sections = [];
+  session.server.sections().then(secs => { sections = secs; build(secs); }).catch(e => error('sections failed', e));
+
+  return {
+    el,
+    name: 'kids-libraries',
+    onShow() { ambience.restore(); },
+    onKey(action) {
+      if (action === 'up') { index = Math.max(0, index - 1); render(); return true; }
+      if (action === 'down') { index = Math.min(rows.length - 1, index + 1); render(); return true; }
+      if (action === 'enter' && rows[index]) {
+        rows[index].on = !rows[index].on;
+        profile.setKidsKeys(rows.filter(r => r.on).map(r => r.key));
+        store.set('homeCache', undefined);
+        build(sections);
+        return true;
+      }
       return false;
     },
   };

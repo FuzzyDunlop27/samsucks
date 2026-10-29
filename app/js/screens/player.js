@@ -63,6 +63,13 @@ function subtitleLabel(s) {
   return title ? title + (s.key ? ' · external' : '') : kind || 'Subtitle';
 }
 
+// "4K · HEVC", "1080p · H264" for the OSD.
+function videoLabel(media) {
+  const r = String(media.videoResolution || '');
+  const res = r === '4k' ? '4K' : /^\d+$/.test(r) ? r + 'p' : r.toUpperCase();
+  return [res, (media.videoCodec || '').toUpperCase()].filter(Boolean).join(' · ');
+}
+
 function cleanSubtitle(text) {
   return String(text || '')
     .replace(/\{\\[^}]*\}/g, '')        // ASS override tags
@@ -127,6 +134,7 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
   let timelineTimer = 0;
   let subTimer = 0;
   let lastText = 0;
+  let streamInfo = '';      // resolution and how it's playing, shown next to "Ends at"
   let upnextTimer = 0;
   let nextItem = null;
   let cueTrack = null;
@@ -166,7 +174,7 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
       const ampm = hh >= 12 ? 'PM' : 'AM';
       hh = hh % 12 || 12;
       const mm = ends.getMinutes();
-      setText(tInfo, 'Ends at ' + hh + ':' + (mm < 10 ? '0' : '') + mm + ' ' + ampm);
+      setText(tInfo, (streamInfo ? streamInfo + '   ·   ' : '') + 'Ends at ' + hh + ':' + (mm < 10 ? '0' : '') + mm + ' ' + ampm);
     }
   }
 
@@ -227,6 +235,7 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
     started = false;
     toggleClass(spinner, 'on', true);
     let url;
+    let how = 'Direct Play';
     if (mode === 'direct') {
       base = 0;
       url = server.url(part.key);
@@ -243,7 +252,14 @@ export function PlayerScreen(initial, { offset = null, channel = null } = {}) {
       const decision = await request(url.replace('/start.m3u8', '/decision'));
       const mc = decision.MediaContainer || {};
       if (mc.generalDecisionCode && mc.generalDecisionCode >= 2000) throw new Error(mc.generalDecisionText || 'Server refused to convert this file');
+      // Video is normally copied and only audio/container converted ("Direct Stream").
+      const dm = ((mc.Metadata || [])[0] || {}).Media || [];
+      const dp = (dm[0] && dm[0].Part || [])[0];
+      const dv = (dp && dp.Stream || []).find(s => s.streamType === 1);
+      how = dv && dv.decision === 'transcode' ? 'Transcode' : 'Direct Stream';
     }
+    streamInfo = [videoLabel(media), how].filter(Boolean).join(' · ');
+    lastText = 0;
     log('play', mode, item.title, media.container + '/' + media.videoCodec + '/' + (audioStream && audioStream.codec), 'at', clock(atMs));
     player.open(url, { uhd: media.videoResolution === '4k' && supports4K() });
     await player.prepare();

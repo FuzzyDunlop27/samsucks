@@ -5,13 +5,17 @@ import { isTizen, registerKeys } from './platform/tizen.js';
 import { session, reconnect, signOut } from './session.js';
 import { HomeScreen } from './screens/home.js';
 import { LoginScreen } from './screens/login.js';
+import { ProfileScreen } from './screens/profiles.js';
+import * as profile from './profile.js';
 import { initHud } from './ui/hud.js';
 import { log, warn } from './util/log.js';
 import * as nav from './nav.js';
 import * as store from './util/store.js';
 
 function goHome() {
-  router.reset(HomeScreen());
+  // Ask who's watching once per launch (and after "Switch profile").
+  if (!profile.chosen()) router.reset(ProfileScreen({ onDone: () => router.reset(HomeScreen()) }));
+  else router.reset(HomeScreen());
 }
 
 function goLogin() {
@@ -72,7 +76,7 @@ function start() {
 // resumes it as it was. Drop back to Home as soon as we're sent away, so a
 // relaunch opens on the main screen and playback stops instead of hanging around.
 function onVisibility() {
-  if (document.hidden && session.token && session.server && router.depth() > 1) goHome();
+  if (document.hidden && session.token && session.server && router.depth() > 1 && profile.chosen()) goHome();
 }
 
 export function boot() {

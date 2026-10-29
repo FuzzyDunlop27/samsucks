@@ -112,7 +112,7 @@ choose **Add to Home**.
 | Back | Go back (while watching, the first press hides the controls) |
 | ▼ while watching | Audio and subtitle tracks |
 | ◀ ▶ while watching | Seek; hold to go faster |
-| Yellow | Change the sort order in a library |
+| ▲ from the top row (or Yellow) | Sort and filter a library: title, date added, release date, rating, genre |
 | CH ▲ / CH ▼ | Jump by letter in a library |
 
 What's in it: home rows (Continue Watching, On Deck, Recently Added…), full library

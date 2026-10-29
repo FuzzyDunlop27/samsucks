@@ -106,10 +106,6 @@ html.playing .ambience { display: none; }
 .brand-mark { width: 84px; height: 84px; display: block; border-radius: 18px; }
 .brand-text { margin-left: 16px; }
 .brand-wordmark { width: 115px; height: 44px; display: block; }
-.brand-by {
-  margin-top: 6px; padding-left: 2px;
-  font: 500 17px/1 var(--body); letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.86);
-}
 
 /* A fixed clip with a sliding track: many libraries scroll instead of overflowing. */
 .nav {
@@ -237,14 +233,20 @@ html.fast .row-track, html.fast .rows-track, html.fast .grid-track, html.fast .r
 .lib-head { position: absolute; top: 52px; left: 96px; right: 96px; display: flex; align-items: baseline; }
 .lib-title { font: 700 76px/1 var(--display); }
 .lib-count { margin-left: 24px; font: 500 26px var(--body); color: var(--dim); }
-.lib-sort { margin-left: auto; font: 500 24px var(--body); color: var(--dim); }
+.lib-btn {
+  margin-left: auto; padding: 14px 28px; border-radius: 16px; align-self: center;
+  background: rgba(255, 247, 230, 0.08); font: 600 24px var(--body); color: var(--dim);
+}
+.lib-btn.focus { background: var(--cream); color: var(--bg); }
+.lib-menu { z-index: 5; }
+.lib-menu .tracks-col { height: 860px; }
+.lib-menu-list { will-change: transform; transition: transform 160ms var(--ease); }
 .lib-focus {
   position: absolute; top: 146px; left: 96px; width: 1300px;
   font: 500 26px var(--body); color: var(--cream);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .lib-hint { position: absolute; top: 150px; right: 96px; font: 500 22px var(--body); color: var(--dim); }
-.key-yellow { display: inline-block; width: 18px; height: 18px; border-radius: 4px; background: #F5C518; vertical-align: -2px; }
 
 .grid { position: absolute; left: 88px; width: 1776px; overflow: hidden; }
 .grid-track {
@@ -436,7 +438,7 @@ html.fast .row-track, html.fast .rows-track, html.fast .grid-track, html.fast .r
 
 .setting {
   display: flex; justify-content: space-between; align-items: center;
-  height: 96px; padding: 0 36px; margin-bottom: 14px; border-radius: 20px;
+  height: 84px; padding: 0 36px; margin-bottom: 12px; border-radius: 20px;
   background: rgba(255, 247, 230, 0.06); font: 600 28px var(--body);
 }
 .setting-value { color: var(--dim); font-weight: 500; }
@@ -532,3 +534,18 @@ html.fast .guide-track { transition-duration: 110ms; }
   position: absolute; top: 10px; right: 14px; z-index: 100; padding: 4px 12px; border-radius: 8px;
   background: rgba(0, 0, 0, 0.65); color: #9f9; font: 18px monospace; pointer-events: none;
 }
+
+/* ---------- profiles ---------- */
+
+.profiles-title { position: absolute; left: 0; right: 0; top: 230px; text-align: center; font: 700 96px/1 var(--display); }
+.profiles-row { position: absolute; left: 0; right: 0; top: 420px; display: flex; justify-content: center; }
+.profile-tile { width: 340px; margin: 0 48px; text-align: center; }
+.profile-face {
+  width: 300px; height: 300px; margin: 0 auto; padding: 36px; border-radius: 40px;
+  background: rgba(255, 247, 230, 0.08); border: 6px solid transparent;
+}
+.profile-kids .profile-face { background: rgba(255, 76, 66, 0.22); }
+.profile-face img { width: 100%; height: 100%; display: block; object-fit: contain; }
+.profile-name { margin-top: 28px; font: 600 40px var(--body); color: var(--dim); }
+.profile-tile.focus .profile-face { border-color: var(--cream); }
+.profile-tile.focus .profile-name { color: var(--cream); }

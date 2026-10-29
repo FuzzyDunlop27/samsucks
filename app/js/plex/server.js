@@ -57,9 +57,9 @@ export class Server {
     return (mc.Hub || []).filter(h => h.size > 0 && SUPPORTED_HUB_TYPES[h.type] && h.Metadata);
   }
 
-  async items(sectionId, start, size, { sort = 'titleSort', type } = {}) {
+  async items(sectionId, start, size, { sort = 'titleSort', type, genre } = {}) {
     const mc = await this.get('/library/sections/' + sectionId + '/all', {
-      sort, type,
+      sort, type, genre,
       'X-Plex-Container-Start': start,
       'X-Plex-Container-Size': size,
       excludeFields: 'summary,tagline',

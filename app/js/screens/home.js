@@ -10,6 +10,7 @@ import * as store from '../util/store.js';
 import * as icons from '../ui/icons.js';
 import { openItem, playItem, openLibrary, openSearch, openSettings, openGuide } from '../nav.js';
 import { error, log } from '../util/log.js';
+import * as profile from '../profile.js';
 
 const ROWS_TOP = 600;
 const NAV_PAD = 80; // wider than the 64px edge fade in app.css
@@ -28,6 +29,26 @@ function slimHub(hub) {
       return o;
     }),
   };
+}
+
+// Kids home: their own Continue Watching/On Deck, then the kids libraries' rows.
+async function kidsHubs(server, sections) {
+  const keys = profile.kidsKeys(sections);
+  const [all, ...perSection] = await Promise.all([server.hubs()].concat(keys.map(k => server.sectionHubs(k).catch(() => []))));
+  const resume = all.filter(hb => /continue|ondeck/i.test(hb.hubIdentifier))
+    .map(hb => Object.assign({}, hb, { Metadata: hb.Metadata.filter(m => profile.kidSafe(m, keys)) }));
+  const titles = {};
+  const rest = [];
+  perSection.forEach((hubs, i) => {
+    const section = sections.find(s => String(s.key) === keys[i]);
+    hubs.filter(hb => !/continue|ondeck/i.test(hb.hubIdentifier)).slice(0, 5).forEach(hb => {
+      // Two kids libraries both have "Recently Added": say which is which.
+      const title = titles[hb.title] && section ? section.title + ' · ' + hb.title : hb.title;
+      titles[hb.title] = 1;
+      rest.push(Object.assign({}, hb, { title }));
+    });
+  });
+  return resume.concat(rest).filter(hb => hb.Metadata.length);
 }
 
 export function heroArtPath(item) {
@@ -50,7 +71,6 @@ export function HomeScreen() {
   h('img', 'brand-mark', brand).src = 'img/mark.png';
   const brandText = h('div', 'brand-text', brand);
   h('img', 'brand-wordmark', brandText).src = 'img/wordmark.png';
-  h('div', 'brand-by', brandText).textContent = 'by rfaile313';
   // The nav is a clip with a sliding track, so any number of libraries fits.
   const navEl = h('nav', 'nav', top);
   const navTrack = h('div', 'nav-track', navEl);
@@ -82,8 +102,9 @@ export function HomeScreen() {
 
   function buildNav(sections) {
     navTrack.innerHTML = '';
-    navItems = [{ label: 'Home', id: 'home' }, { label: 'Guide', id: 'guide' }]
-      .concat(sections.map(s => ({ label: s.title, id: 'section', section: s })))
+    navItems = [{ label: 'Home', id: 'home' }]
+      .concat(profile.isKids() ? [] : [{ label: 'Guide', id: 'guide' }])
+      .concat(profile.visibleSections(sections).map(s => ({ label: s.title, id: 'section', section: s })))
       .concat([{ label: 'Search', id: 'search', icon: icons.search }, { label: 'Settings', id: 'settings', icon: icons.gear }]);
     navIndex = Math.min(navIndex, navItems.length - 1);
     navItems.forEach((n, i) => {
@@ -201,10 +222,12 @@ export function HomeScreen() {
     const server = session.server;
     loadedAt = Date.now();
     try {
-      const [sections, hubs] = await Promise.all([server.sections(), server.hubs()]);
+      const [sections, hubs] = profile.isKids()
+        ? await server.sections().then(secs => kidsHubs(server, secs).then(hb => [secs, hb]))
+        : await Promise.all([server.sections(), server.hubs()]);
       buildNav(sections);
       setHubs(hubs);
-      store.set('homeCache', { server: server.id, sections, hubs: hubs.map(slimHub) });
+      store.set('homeCache', { server: server.id, profile: profile.current(), sections, hubs: hubs.map(slimHub) });
     } catch (e) {
       error('home load failed', e);
       if (!rows.length) setText(empty, 'Couldn\'t load from ' + server.name + '. Press OK to retry.');
@@ -212,7 +235,7 @@ export function HomeScreen() {
   }
 
   const cached = store.get('homeCache');
-  if (cached && session.server && cached.server === session.server.id) {
+  if (cached && session.server && cached.server === session.server.id && (cached.profile || 'normal') === profile.current()) {
     buildNav(cached.sections || []);
     setHubs(cached.hubs || []);
   } else {
